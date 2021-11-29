@@ -1,0 +1,121 @@
+$sela(".swap-vendor").forEach(btn => $on(btn,"click",e => {
+    e.preventDefault()
+    let liStyle = "font-family: monospace;font-size: .9rem;letter-spacing: .0025rem; display:flex"
+    let liDivStyle = "flex-basis:100%"
+    let liIStyle = "flex-basis:5%; margin-top: 5px"
+
+    $curl($gifty("res").ctrl + "adm_vnd&intent_vnd=2.1",{
+        preload: () =>{
+            $preloader("show")
+            Preloader("show")
+        },
+        type: "json"
+    }).finally(() =>{
+        $preloader("hide")
+        Preloader("hide")
+    }).then(resolve => {
+        let options = () => {
+            let output = `<option value="" disabled selected>Select New Merchant</option>`
+            resolve.forEach(res => {
+                output += `<option value="${res.vend}">${res.vend_name}</option>`
+            })
+
+            return output
+        }
+        osModal({
+            size: "lg",
+            body: `<div class="modal-content" style="background: rgba(251, 247, 240, 1); padding: 5px">
+                    <div class="modal-body">
+                        <form class="m11-modal">
+                            <h6 class="text-center text-primary mb-3">SWAP MERCHANT</h6>
+                            <h3 class="text-center mb-3">Change To your preferred Merchant</h3>
+                            <div class="alert alert-warning">By proceeding, you agree to the following terms and conditions associated with the swap merchant process</div>
+                            <ul class="list-unstyled mb-4 text-left text-dark" style="padding: 10px; line-height: 1.7rem; color: var(--gray)">
+                                <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">That this operation was solely done by the recipient and/or by the consent of the recipient of the gift card involved in the operation</div></li>
+                                <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">Trasaction Fee for this operation is ${$gifty("pageVal").vendor_swap_fee}, thereby reducing it's balance by the indicated fee</div></li>
+                            </ul>
+                            
+                            <div class="row mb-3">
+                                <div class="form-group col-md-12 mb-3">
+                                    <label class="text-left d-block">Card ID</label>
+                                    <input class="form-control card-uid" name="id" style="border-radius: 0" placeholder="Enter Card Unique ID" required>
+                                </div>
+                                <div class="form-group col-md-12 mb-3">
+                                    <label class="text-left d-block">Card Recipient Name</label>
+                                    <input class="form-control card-recipient" style="border-radius: 0" readonly name="recipient" placeholder="Recipient will appear here" required>
+                                </div>
+                                <div class="form-group col-md-6 mb-3">
+                                    <label class="text-left d-block">Current Merchant</label>
+                                    <input class="form-control card-vendor" style="border-radius: 0" data-value="" readonly name="vendor_current" placeholder="Merchant will appear here" required>
+                                </div>
+                                <div class="form-group col-md-6 mb-3">
+                                    <label class="text-left d-block">New Merchant</label>
+                                    ${$gifty('gen').form({
+                                        wrap: "", fields: [
+                                            {
+                                                type: "select",
+                                                name: "vendor",
+                                                required: true,
+                                                value: options(),
+                                                id: "new-vendor"
+                                            }   
+                                        ]
+                                    })}
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <button type="button" class="btn btn-outline-dark osai-close-box">Cancel</button>
+                                <button class="btn btn-primary apply-swap">Swap Merchant</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>`,
+            operation: () =>{
+                $style(CusWind.get.head).display = "none";
+                $style(CusWind.get.foot).display = "none";
+                $style(CusWind.get.body).margin = "auto";
+                $style(CusWind.get.body).padding = "0";
+                $on($sel(".osai-close-box"), "click",CusWind.closeBox)
+
+                let cardId = $sel(".card-uid");
+                $on(cardId,"input",() =>{
+                    let value = cardId.value
+                    if(value.trim().length > 10)
+                        $curl($gifty("res").ctrl + "adm_gift&intent_gift=1.9&gift_param_1=" + value,{type: "json"})
+                            .then(res =>{
+                                $sel(".card-recipient").value = res.details.to_name ?? ""
+                                $sel(".card-vendor").value = res.vendor.vend_name ?? ""
+                                $data($sel(".card-vendor"), "value",res.vendor.vend ?? "")
+                            })
+                })
+
+                let btn = $sel(".apply-swap")
+                $on(btn,"click",e => {
+                    e.preventDefault()
+                    if($data($sel(".card-vendor"),"value") === $id("mano-auto-form-generator-new-vendor").value)
+                        return osNote("Swap cannot continue, old merchant and new merchant are the same","warn")
+
+                    $freeze(btn,() =>{
+                        $curl($gifty("res").ctrl + "adm_gift&intent_gift=2.0",{
+                            preload: () => {
+                                Preloader("show")
+                                $preloader("show")
+                            },
+                            type: "json",
+                            form: btn
+                        }).finally(() => {
+                            Preloader("hide")
+                            $preloader("hide")
+                            $freezeBtn(btn,false)
+                        }).then(res =>{
+                            if(res.code === 1)
+                                aMsg(`<div class="text-success p-3 font-weight-bold">${res.msg}</div>`)
+                            else
+                                osNote(res.msg,"fail")
+                        })
+                    })
+                })
+            }
+        })
+    })
+}))

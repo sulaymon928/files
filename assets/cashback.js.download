@@ -1,0 +1,116 @@
+$sela(".cash-back-link").forEach(btn => $on(btn,"click",e => cashBackAgreement(e)))
+
+function cashBackAgreement(e=null) {
+    if(e) e.preventDefault()
+
+    let cashForm = () =>{
+        osModal({
+            size: "md",
+            body: `<div class="modal-content" style="background: rgba(251, 247, 240, 1); padding: 5px">
+                <div class="modal-body">
+                    <form class="m11-modal">
+                        <h6 class="text-center text-primary mb-3">CHECK CARD</h6>
+                        <h3 class="text-center mb-3">Exchange your gift card to cash</h3>
+                        <p class="text-center mb-3">If the verification process of your gift card is successful, it can potentially become actual money in your account Off course, excluding transaction charges which is ${$gifty("pageVal").cashback_fee}</p>
+                        <div class="row mb-3">
+                            <div class="form-group col-md-12 mb-3">
+                                <label class="text-left d-block">Card ID</label>
+                                <input class="form-control card-uid" name="id" style="border-radius: 0" placeholder="Enter Card Unique ID" required>
+                            </div>
+                            <div class="form-group col-md-12 mb-3">
+                                <label class="text-left d-block">Card Recipient Name</label>
+                                <input class="form-control card-uid" name="name" style="border-radius: 0" placeholder="Recipient Name" required>
+                            </div>
+                            <div class="form-group col-md-6 mb-3">
+                                <label class="text-left d-block">Bank Name</label>
+                                <input class="form-control card-uid" name="acc_bank" style="border-radius: 0" placeholder="Bank Name" required>
+                            </div>
+                            <div class="form-group col-md-6 mb-3">
+                                <label class="text-left d-block">Bank Account Name</label>
+                                <input class="form-control card-uid" name="acc_name" style="border-radius: 0" placeholder="Account Name" required>
+                            </div>
+                            <div class="form-group col-md-6 mb-3">
+                                <label class="text-left d-block">Bank Account No</label>
+                                <input class="form-control card-uid" name="acc_no" style="border-radius: 0" placeholder="Account No." required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="text-left d-block">Bank Verification No (BVN)</label>
+                                <input class="form-control card-uid" name="acc_bvn" style="border-radius: 0" placeholder="BVN" required>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <button type="button" class="btn btn-outline-dark osai-close-box">Cancel</button>
+                            <button class="btn btn-primary apply-cashback">Cash Gift Card</button>
+                        </div>
+                    </form>
+                </div>
+            </div>`,
+            operation: () =>{
+                $style(CusWind.get.head).display = "none";
+                $style(CusWind.get.foot).display = "none";
+                $style(CusWind.get.body).margin = "auto";
+                $style(CusWind.get.body).padding = "0";
+                $on($sel(".osai-close-box"), "click",CusWind.closeBox)
+                let btn = $sel(".apply-cashback")
+                $on(btn,"click",e => {
+                    e.preventDefault()
+                    $freeze(btn,() =>{
+                        $curl($gifty("res").ctrl + "adm_gift&intent_gift=1.5",{
+                            preload: () => {
+                                Preloader("show")
+                                $preloader("show")
+                            },
+                            type: "json",
+                            form: btn
+                        }).finally(() => {
+                            Preloader("hide")
+                            $preloader("hide")
+                            $freezeBtn(btn,false)
+                        }).then(res =>{
+                            if(res.code === 1)
+                                aMsg(`<div class="text-success p-3 font-weight-bold">${res.msg}</div>`)
+                            else if(res.code === 2)
+                                aMsg(`<div class="text-warning p-3 font-weight-bold">${res.msg}</div>`)
+                            else
+                                osNote(res.msg,"fail")
+                        })
+                    })
+                })
+            }
+        })
+    }
+
+    let agreementForm = () =>{
+        let agree = $gifty("page").cashback_key
+        let liStyle = "font-family: monospace;font-size: .9rem;letter-spacing: .0025rem; display:flex"
+        let liDivStyle = "flex-basis:100%"
+        let liIStyle = "flex-basis:5%; margin-top: 5px"
+        osModal({
+            head: "TERMS & CONDITIONS",
+            foot: " ",
+            body: `<div class="alert alert-warning">Agree to the following terms before you can proceed with the cash back process</div>
+                <ul class="list-unstyled mb-4 text-left text-dark" style="padding: 10px; line-height: 1.7rem; color: var(--gray)">
+                    <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">Your Gift card, once verified, will be converted to cash</div></li>
+                    <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">You shall receive the value of the gift card in electronic cash directly into your account with a deduction of 2.5% on transaction Charge</div></li>
+                    <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">You must provide Bank Account and BVN details for Identity Verification.</div></li>
+                    <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">Your Cash Back application shall be processed not earlier than 2 hours after application</div></li>
+                    <li style="${liStyle}"><i style="${liIStyle}" class="fas fa-info-circle text-warning mr-2"></i> <div style="${liDivStyle}">The payment is made into a bank account bearing your name as verified</div></li>
+                </ul>
+                <div>
+                    <button class="btn btn-danger outline-btn decline">Decline</button>
+                    <button class="btn btn-success outline-btn accept">Accept</button>
+                </div>
+            `,
+            operation: () => {
+                $on($sel(".accept"), "click", () => {
+                    $store.setItem(agree, "agreed")
+                    cashForm()
+                })
+                $on($sel(".decline"), "click",CusWind.closeBox)
+            }
+        })
+    }
+
+    if(!$store.getItem($gifty("page").cashback_key)) agreementForm()
+    else cashForm()
+}

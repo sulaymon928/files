@@ -1,0 +1,146 @@
+// load merchants
+$curl(ctrl + "2.6",{type: "json"})
+    .then(resolve => {
+        if(resolve.length === 0) return;
+        let body = $sel(".legacy-vendors")
+        $html(body,"del")
+
+        resolve.forEach(res => {
+            $html(body,"beforeend", `
+                <a href="buy-voucher?vend=${res.entity_guid}" class="col-md-4 col-sm-6 mb-3" title="${res.name}">
+                    <img class="img-fluid br-25" style="height:150px; width:250px;" src="${res.profile_pic}" alt="${res.name}">
+                </a>
+            `)
+        })
+    })
+
+// load blogs
+$curl($gifty("res").ctrl + "adm_blg&intent_blg=1.32",{type: "json"})
+    .then(resolve => {
+        if(resolve.length === 0) return;
+        let body = $sel(".blog-list")
+        $html(body,"del")
+
+        resolve.forEach(res => {
+            $html(body,"beforeend", `
+                <div class="col-md-4 mb-4 mb-lg-0">
+                    <div class="image mb-4">
+                        <img src="${res.image}" class="img-fluid br-25" alt="${res.title} featured image">
+                        <a class="icon-arrow br-10" href="blogs/${res.url}"><i class="fas fa-arrow-right"></i></a>
+                    </div>
+                    <h6 class="mb-3">${res.title}</h6>
+                    <p class="mb-0">${res.summary}</p>
+                </div>
+            `)
+        })
+    })
+
+// load testimonial
+$curl($gifty("res").ctrl + "adm_tes&intent_tes=1.22",{type: "json"})
+    .then(resolve => {
+        if(resolve.length === 0) return;
+        let body = $sel(".testimony-list")
+        let dots = $sel(".testimony-list-dots")
+        let images = $sel(".testimony-list-images")
+        $html(images,"del")
+        $html(body,"del")
+        $html(dots,"del")
+
+        resolve.forEach(res => {
+            let image = res.image
+            $html(images,"beforeend", `
+                <div class="owl-item" style="width: 1110px; margin-right: 10px;">
+                    <div class="item">
+                        <div class="mx-auto" style='display: table; width: 200px; height: 200px; background: var(--main-primary) url("${image}") no-repeat center; background-size: contain; border-radius: 100%'></div>
+                    </div>
+                </div>
+            `)
+            $html(body,"beforeend", `
+                <div class="owl-item" style="width: 1110px; margin-right: 20px;">
+                    <div class="item">
+                        <div class="row justify-content-center">
+                            <div class="col-md-5 text-center">
+                                <h6 class="mt-4 mb-3">${res.name}</h6>
+                                <p class="mb-0">${res.description}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `)
+            $html(dots,"beforeend", `
+                <li class="list-inline-item owl-dot team-images">
+                    <div style='width: 62px; height: 62px; background: var(--main-primary) url("${image}") no-repeat center; background-size: contain; border-radius: 100%'></div>
+                </li>
+            `)
+
+            testimonialCarousel()
+        })
+    })
+
+function testimonialCarousel(){
+    $(function() {
+        var $userimg = $("#testimonial-4-slider-images"),
+            $userdetails = $("#testimonial-4-slider-content"),
+            $userdots = $(".user-dots-4"),
+            flag = false,
+            duration = 300;
+        $userimg.owlCarousel({
+            items: 1,
+            autoplay: false,
+            margin: 10,
+            nav: true,
+            dots: false,
+            navText: [
+                "<i class='feather icon-chevron-left'></i>",
+                "<i class='feather icon-chevron-right'></i>"
+            ]
+        })
+            .on('changed.owl.carousel', function(e) {
+                if (!flag) {
+
+                    flag = true;
+                    var a = e.property.value++;
+                    $(".user-dots-4 .team-images").removeClass("current_dot");
+                    $('.user-dots-4 .team-images').eq(a).addClass("current_dot");
+                    $userdots.trigger('to.owl.carousel', [e.item.index, duration, true]);
+                    $userdetails.trigger('to.owl.carousel', [e.item.index, duration, true]);
+                    flag = false;
+                }
+            });
+        $userdetails
+            .owlCarousel({
+                margin: 20,
+                items: 1,
+                nav: false,
+                autoplay: false,
+                center: false,
+                dotsEach: false,
+                dots: true,
+                dotsContainer: '#carousel-custom-dots',
+
+            })
+            .on('click', '.owl-item', function() {
+
+                $userimg.trigger('to.owl.carousel', [$(this).index(), duration, true]);
+                $userdots.trigger('to.owl.carousel', [$(this).index(), duration, true]);
+            })
+            .on('changed.owl.carousel', function(e) {
+                if (!flag) {
+                    flag = true;
+                    var a = e.property.value++;
+                    $(".user-dots-4 .team-images").removeClass("current_dot");
+                    $('.user-dots-4 .team-images').eq(a).addClass("current_dot");
+                    $userdots.trigger('to.owl.carousel', [e.item.index, duration, true]);
+                    $userimg.trigger('to.owl.carousel', [e.item.index, duration, true]);
+                    flag = false;
+                }
+            });
+        $(".user-dots-4 .team-images").eq(0).addClass("current_dot");
+        $('.user-dots-4 .team-images').click(function(e) {
+            $(".team-images").removeClass("current_dot");
+            $(this).addClass("current_dot");
+            $userdetails.trigger('to.owl.carousel', [$(this).index(), duration, true]);
+            $userimg.trigger('to.owl.carousel', [$(this).index(), duration, true]);
+        });
+    });
+}
