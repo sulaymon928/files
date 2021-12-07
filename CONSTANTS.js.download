@@ -1,0 +1,338 @@
+"use strict";
+const GIFTY_CONFIG = new Map();
+GIFTY_CONFIG.set("page", {
+    "title" : $sel(".app-page-title"),
+    "desc" : $sel(".app-page-desc"),
+    "body" : $sel(".app-body"),
+    "anchor_class" : "view-anchor",
+    "anchor_allow_class" : "enable-anchor",
+    "cart_key" : "end_user_cart",
+    "cashback_key" : "giftify-cashback-agreement",
+})
+GIFTY_CONFIG.set("pageVal", {
+    "site_name" : $id("site-name").value,
+    "current_page" : $id("current-page").value,
+    "support" : $id("support-mail").value,
+    "title" : $sel(".app-page-title") ? $html($sel(".app-page-title")) : "",
+    "desc" : $sel(".app-page-desc") ? $html($sel(".app-page-desc")) : "",
+    "cashback_fee" : $id("cashback-fee").value,
+    "vendor_swap_fee" : $id("vendor-swap-fee").value,
+    "gift_card_fee" : parseFloat($id("gift-card-fee").value),
+    "gift_card_fee_physical" : parseFloat($id("gift-card-fee-physical").value),
+    "gift_card_fee_physical_single" : parseFloat($id("gift-card-fee-physical-single").value),
+})
+GIFTY_CONFIG.set("res", {
+    "base" : $id("app-root-base").href,
+    "img" : $id("img-locale").value,
+    "img_custom" : $id("img-custom").value,
+    "kraft" : $id("kraft-locale").value,
+    "js" : $id("js-locale").value,
+    "css" : $id("css-locale").value,
+    "ctrl" : $id("ctrl-router").value + "?ctrl="
+})
+GIFTY_CONFIG.set("clear", {
+    // this is responsible for removing the label used for form in displaying maximum characters available to a field
+    maxLength: () => $sela(".bootstrap-maxlength").forEach(len => $style(len,"del"))
+})
+GIFTY_CONFIG.set("gen",{
+    permission : $sel(".permission-levels") ? JSON.parse($html($sel(".permission-levels"))) : "",
+    switch : () => $sela(".js-switch").forEach((html) => new Switchery(html, { color: '#4680ff', jackColor: '#fff' })),
+    date : (date) => moment(date,"YYYY-MM-DD hh:mm:ss").format("LLL"),
+    dateTimeless : (date) => moment(date,"YYYY-MM-DD hh:mm:ss").format("LL"),
+    dateF : (date, format) => moment(date,"YYYY-MM-DD hh:mm:ss").format(format),
+    table : (option) => {
+        let destroyTable = () => {
+            if($.fn.DataTable.isDataTable('.dt-live-dom'))
+                $('.dt-live-dom').DataTable().clear().destroy()
+        }
+        if(option && option.destroy)
+            return destroyTable()
+
+        $('.dt-live-dom').DataTable({
+            dom: 'Bfrtip',
+            paging: true,
+            searching: true,
+            retrieve: true,
+            pageLength: 20,
+            ...option
+        })
+
+        let searchBar = $sel(".form-control.input-sm");
+        if(searchBar){
+            searchBar.name = "search"
+            searchBar.required = true
+            $on(searchBar,"keyup", e => {
+                if(e.key === "Enter" || e.keyCode === 13) {
+                    let value = searchBar.value
+                    destroyTable()
+                    option.searchTable(encodeURIComponent(value))
+                }
+            },"on")
+        }
+    },
+    maxLength : (inputType = "textarea") => $(inputType + '.max-textarea')
+        .maxlength({
+        alwaysShow: true
+    }),
+    select : (parent = null) => $(".mano-auto-select").select2({
+        placeholder: $(this).data("placeholder"),
+        dropdownParent: parent ?? $("." + CusWind.get.body.className.replaceAll(" ", "."))
+    }),
+    autonumber : () => $(".autonumber").autoNumeric(),
+    currency : (num,locale = "en-NG",currency = "NGN") => {
+        return new Intl.NumberFormat(locale,{
+            style: "currency",
+            currency: currency,
+        }).format(num)
+    },
+    entryView: action => {
+        $sela(".toggle-entry-state").forEach(btn =>{
+            $on(btn, "click", e =>{
+                e.preventDefault();
+                let oldElement = $sel(".btn-warning",btn.closest(".card-header-left"))
+                $class(oldElement,"add","btn-outline-primary")
+                $class(oldElement,"del","btn-warning")
+                $class(btn,"del","btn-outline-primary")
+                $class(btn,"add","btn-warning")
+
+                action({
+                    value: $data(btn,"value")
+                })
+            },"on")
+        })
+    },
+    /**
+     * Activate the action buttons on a table automatically using the `table-actions` class
+     * @param actionsObject
+     * @example [...].tableAction({delete: ({id,name}) => [id,name,...]})
+     */
+    tableAction: (actionsObject = {}) =>{
+        $sela(".table-actions").forEach((btn,i) =>{
+            $on(btn, "click", e =>{
+                e.preventDefault();
+                $loop(actionsObject, (value, key) =>{
+                    // the data-action value must be same with the keys of the action being passed into the script
+                    if($data(btn,"action") === key) {
+                        let parentElement = btn.closest("td")
+                        value({
+                            id: $data(btn, "id"),
+                            name: decodeURIComponent($data(btn, "name")),
+                            index: i, item: btn,
+                            params: $data(btn, "params")?.split(","),
+                            info: !$sel(".entry-info.d-none", parentElement) ? "" : JSON.parse($html($sel(".entry-info.d-none", parentElement)))
+                        })
+                    }
+                })
+            })
+        })
+    },
+    changeRange: (reportLoadingFunction, justValue = false, ...args) => {
+        let rangeBtn = $sel(".choose-range");
+        let rangeField = $id("reportrange");
+        if(justValue)
+            return {
+                range: $sel(".drp-selected") ? $sel(".drp-selected").innerText : ""
+            }
+
+        $on(rangeBtn,"click", e => {
+            e.preventDefault() 
+            // manually update the data field, so as to get the updated range values before sending
+            rangeField.click()
+            rangeField.click()
+
+            let data = $sel(".drp-selected").innerText
+            if(data.trim() === "")
+                return osNote("Current result is using this range")
+            $gifty('gen').table({
+                destroy: true
+            })
+
+            if(args[0] === "dami")
+                reportLoadingFunction("tablebody",null,{range:data});
+            else 
+                reportLoadingFunction({
+                    range: data
+                },...args)
+        })
+    },
+    selectOption: (optionList,optionValue,optionName,selectedValue="") =>{
+        let content = "";
+        optionList.forEach(res =>{
+            content += `<option value="${res[optionValue]}" ${res[optionValue] === selectedValue ? "selected" : ""}>${res[optionName]}</option>`
+        })
+        return content;
+    },
+    /**
+     * Form Generator
+     * @param {string} className
+     * @param {string} style
+     * @param {boolean|string} submitBtn
+     * @param {string} btnClass
+     * @param {string} wrap the element to use in wrapping the elements [default = form]
+     * @param {Array} fields takes multiple elements the form will need and displays in the order of inclusion; inputField below for format
+     * @returns {string}
+     **/
+    form: ({
+       className = "mano-auto-form-generator",
+       style = "",
+       submitBtn = true,
+       btnClass = "mano-auto-form-generator-submit-button",
+       wrap = "form",
+       fields = []
+   }) => {
+        let notInputField = ['hr','heading','div','empty','hidden','fun'];
+        let inputField = (index,{
+            label = false,
+            name= "",
+            className = "",
+            required= false,
+            readOnly= false,
+            disabled= false,
+            checked= false,
+            multiple= false,
+            placeholder= "Enter text...",
+            type= "text",
+            color = "primary",
+            rows= 4,
+            col = 12,
+            colMd = 12,
+            colSm = 12,
+            wrap = true,
+            wrapStyle = "",
+            wrapClass = "",
+            value = "",
+            style = "",
+            group = null,
+            accept = null,
+            maxLength = false,
+            fixType = "text",
+            prefix = "",
+            prefixClass = "",
+            postfix = "",
+            postfixClass = "",
+            fun = () => null,
+        }) => {
+            let field,labelRaw,innerValue = "";
+
+            required = required === true ? " required " : ""
+            readOnly = readOnly === true ? " readonly " : ""
+            disabled = disabled === true ? " disabled " : ""
+            checked = checked === true ? " checked " : ""
+            multiple = multiple === true ? " multiple " : ""
+            maxLength = maxLength ? ` maxlength="${maxLength}" ` : ""
+            accept = accept ? ` accept="${accept}" ` : ""
+            name = name ? `name="${name}"` : ""
+
+            if(value){
+                innerValue = value
+                value = `value="${value}"`
+            }
+
+            labelRaw = label;
+            label = label ? `<label class="col-form-label text-left" for="mano-auto-form-generator-${index}">${label}</label>` : "";
+
+            switch (type){
+                case "textArea":
+                    field = `<textarea style="${style}" id="mano-auto-form-generator-${index}" class="form-control max-textarea ${className}" rows="${rows}" placeholder="${placeholder}" 
+                        ${name+maxLength+required+readOnly+disabled}>${innerValue}</textarea>`;
+                    break;
+                case "switch":
+                    field = `<input type="checkbox" id="mano-auto-form-generator-${index}" value="${value}" class="js-switch ${className}" 
+                        ${name+required+readOnly+disabled+checked} />`;
+                    break;
+                case "checkbox":
+                    label = "";
+                    field = `<div class="checkbox-fade fade-in-${color}">
+                        <label><input type="checkbox" id="mano-auto-form-generator-${index}" value="${value}" 
+                            ${name+required+readOnly+disabled+checked} />
+                            <span class="cr"><i class="cr-icon icofont icofont-ui-check txt-${color}"></i></span>
+                            <span>${labelRaw}</span>
+                        </label>
+                    </div>`;
+                    break;
+                case "select":
+                    field = `<select style="${style}" id="mano-auto-form-generator-${index}" class="form-control mano-auto-select ${className}" 
+                        data-placeholder="${placeholder !== "Enter text..." ? placeholder : "Select an option..."}" 
+                        ${name+required+readOnly+disabled+multiple}>${innerValue}</select>`;
+                    break;
+                case "hr": field = `<hr />`; break;
+                case "heading": field = `<h4 class="sub-title ${className}" style="font-size: 1.2rem;${style}">${innerValue}</h4>`; break;
+                case "div": field = `<div class="${className}" style="${style}">${innerValue}</div>`;break;
+                case "fun": field = fun() ?? ""; break;
+                case "empty": field = innerValue; break;
+                case "hidden": field = `<input type="hidden" placeholder="${placeholder}" ${name+value+required} />`; break;
+                case "input-fix":
+                    let fix = (className, value) =>
+                        `<div class="input-group-prepend"><span class="input-group-text ${className}">${value}</span></div>`
+
+                    field = `<div class="input-group">${prefix ? fix(prefixClass,prefix) : ""}
+                        <input type="${fixType}" id="mano-auto-form-generator-${index}" class="form-control ${className}" 
+                            placeholder="${placeholder}" ${name+value+maxLength+required+readOnly+disabled}" />
+                        ${postfix ? fix(postfixClass,postfix) : ""}
+                    </div>`;break;
+                default:
+                    field = `<input style="${style}" type="${type}" id="mano-auto-form-generator-${index}" class="form-control ${className}" 
+                        placeholder="${placeholder}" ${name+value+maxLength+required+readOnly+disabled+multiple+accept} />`;
+                    break;
+            }
+
+            if(col > 12) col = 12;
+            else if(col < 1) col = 1;
+
+            return {
+                field: notInputField.some((v) => v === type) ? field : (wrap === false ? `${label} ${field}` :
+                    `<div class="form-group col-sm-${colSm} col-md-${colMd} col-xl-${col} m-b-30 ${wrapClass}" style="${wrapStyle}">${label} ${field}</div>`),
+                group: group
+            }
+        };
+        let form = wrap ? `<${wrap} class="${className}" style="${style}">` : "";
+        let oldGroup = -2;
+        let newGroup = -1;
+        let totalElement = fields.length
+
+        fields.forEach((ele,i) => {
+            let group = ele.group ? "-" + ele.group : "";
+            let rule = !notInputField.some(v => v === ele.type);
+            oldGroup = fields[i - 1]?.group ?? -2;
+            newGroup = fields[i + 1]?.group ?? -1;
+
+            if((rule && i === 0) || (!notInputField.some(v => v === ele.type) && oldGroup !== ele.group))
+                form += `<div class="row form-grouped${group}">`;
+
+            form += inputField(ele.id ?? i,ele).field
+
+            if((rule && newGroup !== ele.group) || (rule && i === (totalElement - 1)))
+                form += "</div>"
+        })
+
+        // add submit button or custom button
+        if(wrap === "form") {
+            if (submitBtn === true)
+                form += `<button class="btn btn-round btn-grd-success ${btnClass}">Submit <i class='icofont icofont-check-circled'></i></button>`;
+            else if ($type(submitBtn) === "String")
+                form += submitBtn;
+        }
+
+        return form + (wrap ? `</${wrap}>` : "");
+    }
+})
+
+const $gifty = key => GIFTY_CONFIG.get(key)
+
+const Preloader = act => act === "show" ?
+    $class($sel(".app-preloader"), "del","d-none") :
+    $class($sel(".app-preloader"), "add","d-none");
+
+// configure the default layout of the Custom window boxes
+CusWind.config({
+    align: "center",
+    size: "md",
+    closeOnBlur: false
+});
+
+const storeItem = (key,value) => $store.setItem(key,JSON.stringify(value))
+const getItem = key => JSON.parse($store.getItem(key))
+const delItem = key => {
+    let x = getItem(key)
+    $store.removeItem(x(key))
+}
